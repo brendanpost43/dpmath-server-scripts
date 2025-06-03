@@ -43,4 +43,4 @@ sudo systemctl start wazuh-agent
 echo ">> Status of wazuh-agent:"
 sudo systemctl status wazuh-agent --no-pager
 
-echo "✅ Installation complete."
+echo "Installation complete!"
