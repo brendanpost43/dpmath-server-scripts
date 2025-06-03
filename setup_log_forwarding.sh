@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ========= CONFIG =========
-LOG_SERVER_HOST="129.123.40.35"   # Change to your actual log server hostname or IP
+LOG_SERVER_HOST="log.math.usu.edu"   # Change to your actual log server hostname or IP
 LOG_SERVER_PORT="514"
 USE_TCP=true  # Set to false to use UDP
 # ==========================
