@@ -1,52 +1,62 @@
 #!/bin/bash
 
 
-set -euo pipefail                             # Exit on error (-e), undefined var (-u), and fail pipelines (-o pipefail)
+set -euo pipefail # Exit on error (-e), undefined var (-u), and fail pipelines (-o pipefail)
+
 
 # ---------------------------
 # 1) Basic input & root check
 # ---------------------------
 
-USER_NAME="${1:-}"                            # First positional argument is the new username (or empty if not provided)
-ADMIN_EMAIL="${2:-}"                          # Second positional argument is an optional email to notify
+USER_NAME="${1:-}" # First positional argument is the new username. Set USER_NAME equal to the first argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
+ADMIN_EMAIL="${2:-}" #Second positional argument is the new username. Set ADMIN_EMAIL equal to the second argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
 
-if [[ -z "$USER_NAME" ]]; then                # If no username was given
-  echo "Usage: $0 <username> [notify_email]"  # Show a tiny usage message
-  exit 2                                      # Exit with a "bad usage" status
-fi                                            # End of the "no username" check
+#NO USERNAME CHECK
+if [[ -z "$USER_NAME" ]]; then # If no username was given
+  echo "Usage: $0 <username> [notify_email]" # Show a tiny usage message
+  exit 2 # Exit with a "bad usage" status
+fi # End of the check
 
-if [[ $EUID -ne 0 ]]; then                    # If not running as root (user id not equal to 0)
-  echo "Please run as root (use sudo)."       # Tell the user they need root privileges
-  exit 1                                      # Exit with a failure code
-fi                                            # End of root check
+#ROOT CHECK
+if [[ $EUID -ne 0 ]]; then # If not running as root (user id not equal to 0)
+  echo "Please run as root (use sudo)." # Tell the user they need root privileges
+  exit 1 # Exit with a failure code
+fi # End of root check
+
+
 
 # --------------------------------
 # 2) Validate the target user name
 # --------------------------------
 
-if ! [[ "$USER_NAME" =~ ^[a-z][-a-z0-9_]*$ ]]; then  # Ensure username is simple/posix-ish: starts with a-z, then dashes/digits/underscores
-  echo "Invalid username: $USER_NAME"                # Tell the user what failed
-  exit 1                                              # Exit with failure
-fi                                                    # End of username regex check
+#REGEX CHECK
+if ! [[ "$USER_NAME" =~ ^[a-z][-a-z0-9_]*$ ]]; then # Ensure username is simple/posix-ish: starts with a-z, then dashes/digits/underscores
+  echo "Invalid username: $USER_NAME" # Tell the user what failed
+  exit 1 # Exit with failure
+fi # End of username regex check
 
 if getent passwd "$USER_NAME" >/dev/null; then        # Check if the username already exists on the system
   echo "User already exists: $USER_NAME"              # Inform that we won’t overwrite existing users
   exit 1                                              # Exit with failure
 fi                                                    # End of existence check
 
+
+
 # ------------------------------------------------------
 # 3) Pick a word source to build human-ish random words
 # ------------------------------------------------------
 
-WORDLIST=""                                    # Initialize an empty variable for the wordlist path
+WORDLIST=""  # Initialize an empty variable for the wordlist path
 
-if [[ -f /usr/share/dict/words ]]; then        # Prefer the common dictionary if it exists
-  WORDLIST="/usr/share/dict/words"             # Use /usr/share/dict/words
-elif [[ -f /usr/share/dict/american-english ]]; then  # Otherwise try another common dict path
+if [[ -f /usr/share/dict/words ]]; then # Prefer the common dictionary if it exists
+  WORDLIST="/usr/share/dict/words" # Use /usr/share/dict/words
+elif [[ -f /usr/share/dict/american-english ]]; then # Otherwise try another common dict path
   WORDLIST="/usr/share/dict/american-english"  # Use american-english wordlist
-else                                           # If no system dictionary is available
-  WORDLIST="/tmp/simple_words.txt"             # Create a tiny ad-hoc list so the script still works
-  cat > "$WORDLIST" <<'EOF'                    # Write a small built-in list (lowercase 4–8 letters) to a temp file
+else # If no system dictionary is available
+  WORDLIST="/tmp/simple_words.txt" # Create a tiny ad-hoc list so the script still works
+   
+   # Write a small built-in list (lowercase 4–8 letters) to a temp file
+  cat > "$WORDLIST" <<'EOF'                
 apple
 maple
 river
@@ -76,57 +86,66 @@ planet
 tunnel
 candle
 oxygen
-EOF                                             # End of small inline wordlist
-fi                                              # End of wordlist selection
+EOF
+fi
+# End of small inline wordlist                                            
+# End of wordlist selection
+
 
 # ----------------------------------------------------------
 # 4) Helper to grab a single random lowercase word (4–8 len)
 # ----------------------------------------------------------
 
-pick_word() {                                       # Define a simple function called pick_word
-  tr '[:upper:]' '[:lower:]' < "$WORDLIST" |        # Lowercase the wordlist so filtering is consistent
-  grep -E '^[a-z]{4,8}$'       |                    # Keep only words of length 4–8 letters
-  shuf -n 1                         ||              # Shuffle and take one random word (fallback if shuf fails)
-  echo "alpha"                                      # If the pipeline fails for any reason, fallback to "alpha"
-}                                                   # End of pick_word function
+#FUNCTION: SELECT A RANDOM WORD
+pick_word() { # Define a simple function called pick_word
+  tr '[:upper:]' '[:lower:]' < "$WORDLIST" | # Lowercase the wordlist so filtering is consistent
+  grep -E '^[a-z]{4,8}$'       |  # Keep only words of length 4–8 letters
+  shuf -n 1                         || # Shuffle and take one random word (fallback if shuf fails)
+  echo "alpha" # If the pipeline fails for any reason, fallback to "alpha"
+} # End of pick_word function
+
 
 # -------------------------------------------------------------
 # 5) Build a password: word1.word2.word3 with one 3-digit chunk
 #    inserted either before/after a word or just after a dot
 # -------------------------------------------------------------
 
-W1="$(pick_word)"                                   # Pick the first random word
-W2="$(pick_word)"                                   # Pick the second random word
-W3="$(pick_word)"                                   # Pick the third random word
-NUM="$(shuf -i 100-999 -n 1)"                       # Pick a random three-digit number between 100 and 999
+W1="$(pick_word)" # Pick the first random word
+W2="$(pick_word)" # Pick the second random word
+W3="$(pick_word)" # Pick the third random word
+NUM="$(shuf -i 100-999 -n 1)" # Pick a random three-digit number between 100 and 999
 
-BASE="${W1}.${W2}.${W3}"                            # Start with the base pattern word1.word2.word3
+BASE="${W1}.${W2}.${W3}" # Define the base as pattern word1.word2.word3
 
-SPOT="$(shuf -i 1-6 -n 1)"                          # Choose a random insertion spot from 1 to 6
+SPOT="$(shuf -i 1-6 -n 1)" # Choose a random insertion spot from 1 to 6
 
-if   [[ "$SPOT" -eq 1 ]]; then                      # If spot is 1 → before first word
-  PASS="${NUM}${W1}.${W2}.${W3}"                    # Insert number before word1
-elif [[ "$SPOT" -eq 2 ]]; then                      # If spot is 2 → after first word
-  PASS="${W1}${NUM}.${W2}.${W3}"                    # Insert number immediately after word1
-elif [[ "$SPOT" -eq 3 ]]; then                      # If spot is 3 → after the first dot
-  PASS="${W1}.${NUM}${W2}.${W3}"                    # Insert number right after the first period
-elif [[ "$SPOT" -eq 4 ]]; then                      # If spot is 4 → after second word
-  PASS="${W1}.${W2}${NUM}.${W3}"                    # Insert number immediately after word2
-elif [[ "$SPOT" -eq 5 ]]; then                      # If spot is 5 → after the second dot
-  PASS="${W1}.${W2}.${NUM}${W3}"                    # Insert number right after the second period
-else                                                # Otherwise (spot 6) → after third word (end)
-  PASS="${W1}.${W2}.${W3}${NUM}"                    # Insert number at the end
-fi                                                  # End of insertion logic
+if   [[ "$SPOT" -eq 1 ]]; then  # If spot is 1 before first word
+  PASS="${NUM}${W1}.${W2}.${W3}" # Insert number before word1
+elif [[ "$SPOT" -eq 2 ]]; then # If spot is 2 after first word
+  PASS="${W1}${NUM}.${W2}.${W3}" # Insert number immediately after word1
+elif [[ "$SPOT" -eq 3 ]]; then # If spot is 3 after the first dot
+  PASS="${W1}.${NUM}${W2}.${W3}" # Insert number right after the first period
+elif [[ "$SPOT" -eq 4 ]]; then # If spot is 4 after second word
+  PASS="${W1}.${W2}${NUM}.${W3}" # Insert number immediately after word2
+elif [[ "$SPOT" -eq 5 ]]; then # If spot is 5 after the second dot
+  PASS="${W1}.${W2}.${NUM}${W3}" # Insert number right after the second period
+else # Otherwise (spot 6) after third word (end)
+  PASS="${W1}.${W2}.${W3}${NUM}" # Insert number at the end
+fi # End of insertion logic
+
+
 
 # -----------------------------------------------------
 # 6) Create the user, set password, force password rot
 # -----------------------------------------------------
 
-useradd -m -s /bin/bash "$USER_NAME"                # Create the user with a home directory and Bash shell
+useradd -m -s /bin/bash "$USER_NAME" # Create the user with a home directory and Bash shell
 
-echo "${USER_NAME}:${PASS}" | chpasswd              # Set the user’s password non-interactively via chpasswd
+echo "${USER_NAME}:${PASS}" | chpasswd # Set the user’s password non-interactively via chpasswd
 
-chage -d 0 "$USER_NAME"                             # Force the user to change password at first successful login
+chage -d 0 "$USER_NAME" # Force the user to change password at first successful login
+
+
 
 # ----------------------------------------
 # 7) Try to email the credentials to you
