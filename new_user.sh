@@ -190,23 +190,23 @@ chage -d 0 "$USER_NAME" # Force the user to change password at first successful 
 
 MAIL_BODY="Username: ${USER_NAME}\nPassword: ${PASS}\nHost: $(hostname -f)\nRotation: forced on first login"  # Prepare the email body text
 
-if [[ -n "$ADMIN_EMAIL" ]]; then                    # If an email address was provided as the second argument
-  if command -v mail >/dev/null 2>&1; then          # If the 'mail' command exists on this system
+if [[ -n "$ADMIN_EMAIL" ]]; then # If an email address was provided as the second argument
+  if command -v mail >/dev/null 2>&1; then # If the 'mail' command exists on this system
     printf "%b" "$MAIL_BODY" | mail -s "New account: ${USER_NAME}" "$ADMIN_EMAIL"  # Send the email with subject and body
-    SENT_STATUS=$?                                  # Capture the exit status from the mail command
-  else                                              # If the 'mail' command is not available
+    SENT_STATUS=$? # Capture the exit status from the mail command
+  else # If the 'mail' command is not available
     echo "Note: 'mail' command not found; displaying credentials below."  # Explain we can’t email
-    echo -e "$MAIL_BODY"                            # Print the credentials to the terminal as a fallback
-    SENT_STATUS=1                                   # Mark as a non-success so we can act if desired
-  fi                                                # End check for 'mail' binary
+    echo -e "$MAIL_BODY" # Print the credentials to the terminal as a fallback
+    SENT_STATUS=1 # Mark as a non-success so we can act if desired
+  fi # End check for 'mail' binary
 
-  if [[ $SENT_STATUS -ne 0 ]]; then                 # If sending the email failed
-    echo "Warning: Email send appears to have failed."  # Warn the operator
-    # passwd -l "$USER_NAME"                        # (Optional) lock the account until you resend successfully; uncomment to use
-  fi                                                # End of email failure handling
-else                                                # If no email was provided
-  echo -e "$MAIL_BODY"                              # Simply print the credentials so you can copy them securely yourself
-fi                                                  # End of "email or print" branch
+  if [[ $SENT_STATUS -ne 0 ]]; then # If sending the email failed
+    echo "Warning: Email send appears to have failed." # Warn the operator
+  fi  # End of email failure handling
+else  # If no email was provided
+  echo -e "$MAIL_BODY" # Simply print the credentials so you can copy them securely yourself
+fi  # End of "email or print" branch
+
 
 # ---------------------------------
 # 8) Minimal audit (no passwords)
@@ -222,7 +222,8 @@ chmod 600 "$LOG_FILE"                               # Restrict the file so only 
 
 echo "$(date -Is) user=${USER_NAME} host=$(hostname -f) action=create" >> "$LOG_FILE"  # Append a one-line audit entry without the password
 
+
 # -----------------------
 # 9) Friendly final line
 # -----------------------
-echo "Created user '${USER_NAME}'. Password change is required at first login."  # Tell the operator we’re done
+echo "Created user '${USER_NAME}'. Password change is required at first login. User now has access to the NAS. "  # Tell the operator we’re done
