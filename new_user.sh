@@ -167,6 +167,17 @@ chage -d 0 "$USER_NAME" # Force the user to change password at first successful 
 
 
 
+#----ADD THE NEW USER TO THE MATH NAS----
+NAS_ROOT ="/mnt/nas_math"
+NAS_USER_DIR="${NAS_ROOT}/${USER_NAME}"
+
+mkdir "$NAS_USER_DIR" #create a directory for the user (USE THE USER'S SERVER UNAME)
+
+sudo chown "${USER_NAME}:admin" "$NAS_USER_DIR" #change ownership and group
+
+sudo chmod 750 "$NAS_USER_DIR" #change permissions; user can read and write while admin can only ready
+
+
 
 #----Send the user credentials to admin so they can inform the user---
 MAIL_BODY="Username: ${USER_NAME}\nPassword: ${PASS}\nHost: $(hostname -f)\nRotation: forced on first login"  # Prepare the email body text
