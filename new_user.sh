@@ -4,10 +4,8 @@
 set -euo pipefail # Exit on error (-e), undefined var (-u), and fail pipelines (-o pipefail)
 
 
-# ---------------------------
-# 1) Basic input & root check
-# ---------------------------
 
+#----BASIC INPUT AND ROOT CHECK----
 USER_NAME="${1:-}" # First positional argument is the new username. Set USER_NAME equal to the first argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
 ADMIN_EMAIL="${2:-}" #Second positional argument is the new username. Set ADMIN_EMAIL equal to the second argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
 
@@ -24,12 +22,7 @@ if [[ $EUID -ne 0 ]]; then # If not running as root (user id not equal to 0)
 fi # End of root check
 
 
-
-# --------------------------------
-# 2) Validate the target user name
-# --------------------------------
-
-#REGEX CHECK
+#----VALIDATE USERNAME----
 if ! [[ "$USER_NAME" =~ ^[a-z][-a-z0-9_]*$ ]]; then # Ensure username is simple/posix-ish: starts with a-z, then dashes/digits/underscores
   echo "Invalid username: $USER_NAME" # Tell the user what failed
   exit 1 # Exit with failure
@@ -42,10 +35,8 @@ fi                                                    # End of existence check
 
 
 
-# ------------------------------------------------------
-# 3) Pick a word source to build human-ish random words
-# ------------------------------------------------------
 
+#----WORD SOURCE----
 WORDLIST=""  # Initialize an empty variable for the wordlist path
 
 if [[ -f /usr/share/dict/words ]]; then # Prefer the common dictionary if it exists
@@ -129,23 +120,18 @@ fi
 # End of wordlist selection
 
 
-# ----------------------------------------------------------
-# 4) Helper to grab a single random lowercase word (4–8 len)
-# ----------------------------------------------------------
 
-#FUNCTION: SELECT A RANDOM WORD
+
+#----FUNCTION: SELECT A RANDOM WORD----
 pick_word() { # Define a simple function called pick_word
   tr '[:upper:]' '[:lower:]' < "$WORDLIST" | # Lowercase the wordlist so filtering is consistent
-  grep -E '^[a-z]{4,8}$'       |  # Keep only words of length 4–8 letters
+  grep -E '^[a-z]{4,11}$'       |  # Keep only words of length 4–11 letters
   shuf -n 1                         || # Shuffle and take one random word (fallback if shuf fails)
   echo "alpha" # If the pipeline fails for any reason, fallback to "alpha"
 } # End of pick_word function
 
 
-# -------------------------------------------------------------
-# 5) Build a password: word1.word2.word3 with one 3-digit chunk
-#    inserted either before/after a word or just after a dot
-# -------------------------------------------------------------
+#----Build a password: word1.word2.word3 with one 3-digit chunk----
 
 W1="$(pick_word)" # Pick the first random word
 W2="$(pick_word)" # Pick the second random word
@@ -172,10 +158,7 @@ fi # End of insertion logic
 
 
 
-# -----------------------------------------------------
-# 6) Create the user, set password, force password rot
-# -----------------------------------------------------
-
+#----Create the user, set password, force password change on first login----
 useradd -m -s /bin/bash "$USER_NAME" # Create the user with a home directory and Bash shell
 
 echo "${USER_NAME}:${PASS}" | chpasswd # Set the user’s password non-interactively via chpasswd
@@ -184,10 +167,8 @@ chage -d 0 "$USER_NAME" # Force the user to change password at first successful 
 
 
 
-# ----------------------------------------
-# 7) Try to email the credentials to you
-# ----------------------------------------
 
+#----Send the user credentials to admin so they can inform the user---
 MAIL_BODY="Username: ${USER_NAME}\nPassword: ${PASS}\nHost: $(hostname -f)\nRotation: forced on first login"  # Prepare the email body text
 
 if [[ -n "$ADMIN_EMAIL" ]]; then # If an email address was provided as the second argument
@@ -208,22 +189,16 @@ else  # If no email was provided
 fi  # End of "email or print" branch
 
 
-# ---------------------------------
-# 8) Minimal audit (no passwords)
-# ---------------------------------
+#----Minimal audit (no passwords)
+LOG_DIR="/var/log/ops" # Send logs to /var/log/ops
+LOG_FILE="${LOG_DIR}/newuser.log" # Choose a single log file name
 
-LOG_DIR="/var/log/ops"                              # Choose a directory for simple ops logs
-LOG_FILE="${LOG_DIR}/newuser.log"                   # Choose a single log file name
-
-mkdir -p "$LOG_DIR"                                 # Ensure the log directory exists
-chmod 700 "$LOG_DIR"                                # Restrict the directory so only root can read it
-touch "$LOG_FILE"                                   # Ensure the log file exists
-chmod 600 "$LOG_FILE"                               # Restrict the file so only root can read it
+mkdir -p "$LOG_DIR" # make sure the log directory exists
+chmod 700 "$LOG_DIR" # Restrict the directory so only root can read it
+touch "$LOG_FILE" # Ensure the log file exists
+chmod 600 "$LOG_FILE" # Restrict the file so only root can read it
 
 echo "$(date -Is) user=${USER_NAME} host=$(hostname -f) action=create" >> "$LOG_FILE"  # Append a one-line audit entry without the password
 
 
-# -----------------------
-# 9) Friendly final line
-# -----------------------
 echo "Created user '${USER_NAME}'. Password change is required at first login. User now has access to the NAS. "  # Tell the operator we’re done
