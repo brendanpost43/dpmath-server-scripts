@@ -159,48 +159,53 @@ fi # End of insertion logic
 
 
 #----Create the user, set password, force password change on first login----
+echo
+echo "======================================================"
+echo " Creating user account..."
+echo "======================================================"
+
 useradd -m -s /bin/bash "$USER_NAME" # Create the user with a home directory and Bash shell
-
 echo "${USER_NAME}:${PASS}" | chpasswd # Set the user’s password non-interactively via chpasswd
-
 chage -d 0 "$USER_NAME" # Force the user to change password at first successful login
 
-
-
 #----ADD THE NEW USER TO THE MATH NAS----
+echo
+echo "======================================================"
+echo " Adding user to NAS..."
+echo "======================================================"
+
 NAS_ROOT ="/mnt/nas_math"
 NAS_USER_DIR="${NAS_ROOT}/${USER_NAME}"
 
 mkdir "$NAS_USER_DIR" #create a directory for the user (USE THE USER'S SERVER UNAME)
-
 sudo chown "${USER_NAME}:admin" "$NAS_USER_DIR" #change ownership and group
-
 sudo chmod 750 "$NAS_USER_DIR" #change permissions; user can read and write while admin can only ready
 
 
 
-#----Send the user credentials to admin so they can inform the user---
-MAIL_BODY="Username: ${USER_NAME}\nPassword: ${PASS}\nHost: $(hostname -f)\nRotation: forced on first login"  # Prepare the email body text
+#----DISPLAY USER CREDENTIALS IN TERMINAL (ALLOWS THE ADMIN TO SEND THE USER THEIR TEMP PASSWORD)
+echo
+echo "======================================================"
+echo " New user account created successfully!"
+echo "======================================================"
+echo "Username : ${USER_NAME}"
+echo "Password : ${PASS}"
+echo "Server     : $(hostname -f)"
+echo "Rotation : Forced on first login"
+echo "======================================================"
+echo
+echo "Copy these credentials securely and provide them to the user."
+echo "They will be prompted to change the password on their first login."
+echo
 
-if [[ -n "$ADMIN_EMAIL" ]]; then # If an email address was provided as the second argument
-  if command -v mail >/dev/null 2>&1; then # If the 'mail' command exists on this system
-    printf "%b" "$MAIL_BODY" | mail -s "New account: ${USER_NAME}" "$ADMIN_EMAIL"  # Send the email with subject and body
-    SENT_STATUS=$? # Capture the exit status from the mail command
-  else # If the 'mail' command is not available
-    echo "Note: 'mail' command not found; displaying credentials below."  # Explain we can’t email
-    echo -e "$MAIL_BODY" # Print the credentials to the terminal as a fallback
-    SENT_STATUS=1 # Mark as a non-success so we can act if desired
-  fi # End check for 'mail' binary
-
-  if [[ $SENT_STATUS -ne 0 ]]; then # If sending the email failed
-    echo "Warning: Email send appears to have failed." # Warn the operator
-  fi  # End of email failure handling
-else  # If no email was provided
-  echo -e "$MAIL_BODY" # Simply print the credentials so you can copy them securely yourself
-fi  # End of "email or print" branch
 
 
 #----Minimal audit (no passwords)
+echo
+echo "======================================================"
+echo " Finishing account creation..."
+echo "======================================================"
+
 LOG_DIR="/var/log/ops" # Send logs to /var/log/ops
 LOG_FILE="${LOG_DIR}/newuser.log" # Choose a single log file name
 
@@ -211,5 +216,9 @@ chmod 600 "$LOG_FILE" # Restrict the file so only root can read it
 
 echo "$(date -Is) user=${USER_NAME} host=$(hostname -f) action=create" >> "$LOG_FILE"  # Append a one-line audit entry without the password
 
-
-echo "Created user '${USER_NAME}'. Password change is required at first login. User now has access to the NAS. "  # Tell the operator we’re done
+#----END MESSAGE----
+echo
+echo "======================================================"
+echo " Created user '${USER_NAME}'."  # Tell the operator we’re done
+echo "======================================================"
+echo
