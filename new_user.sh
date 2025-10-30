@@ -3,17 +3,13 @@
 
 set -euo pipefail # Exit on error (-e), undefined var (-u), and fail pipelines (-o pipefail)
 
+#---INPUT USERNAME----
+read -rp "Enter a username for the user: " USER_NAME
+while [[ -z "$USER_NAME" ]]; do
+  echo "Username cannot be empty."
+  read -rp "Enter new username: " USER_NAME
+done
 
-
-#----BASIC INPUT AND ROOT CHECK----
-USER_NAME="${1:-}" # First positional argument is the new username. Set USER_NAME equal to the first argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
-ADMIN_EMAIL="${2:-}" #Second positional argument is the new username. Set ADMIN_EMAIL equal to the second argument passed into the script; if nothing was provided, set it to an empty string instead of giving an error
-
-#NO USERNAME CHECK
-if [[ -z "$USER_NAME" ]]; then # If no username was given
-  echo "Usage: $0 <username> [notify_email]" # Show a tiny usage message
-  exit 2 # Exit with a "bad usage" status
-fi # End of the check
 
 #ROOT CHECK
 if [[ $EUID -ne 0 ]]; then # If not running as root (user id not equal to 0)
@@ -174,12 +170,12 @@ echo "======================================================"
 echo " Adding user to NAS..."
 echo "======================================================"
 
-NAS_ROOT ="/mnt/nas_math"
+NAS_ROOT="/mnt/nas_math"
 NAS_USER_DIR="${NAS_ROOT}/${USER_NAME}"
 
 mkdir "$NAS_USER_DIR" #create a directory for the user (USE THE USER'S SERVER UNAME)
-sudo chown "${USER_NAME}:admin" "$NAS_USER_DIR" #change ownership and group
-sudo chmod 750 "$NAS_USER_DIR" #change permissions; user can read and write while admin can only ready
+chown "${USER_NAME}:admin" "$NAS_USER_DIR" #change ownership and group
+chmod 750 "$NAS_USER_DIR" #change permissions; user can read and write while admin can only ready
 
 
 
